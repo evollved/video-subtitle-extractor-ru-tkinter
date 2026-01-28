@@ -3,7 +3,7 @@
 @Author  : Fang Yao 
 @Time    : 2021/3/24 9:36 上午
 @FileName: config.py
-@desc: 项目配置文件，可以在这里调参，牺牲时间换取精确度，或者牺牲准确度换取时间
+@desc: Конфигурация проекта, здесь можно настраивать параметры, жертвуя временем для точности или точностью для времени
 """
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -12,32 +12,41 @@ import os
 import re
 import time
 from pathlib import Path
-from fsplit.filesplit import Filesplit
+try:
+    # Для новой версии filesplit (>=4.0.0)
+    from filesplit.split import Split
+    from filesplit.merge import Merge
+    FILESPLIT_NEW_API = True
+except ImportError:
+    # Для старой версии filesplit (<4.0.0)
+    from fsplit.filesplit import Filesplit
+    FILESPLIT_NEW_API = False
 import paddle
 from tools.constant import *
 
-# 项目版本号
+# Версия проекта
 VERSION = "2.0.3"
 
-# 项目的base目录
+# Базовый каталог проекта
 BASE_DIR = str(Path(os.path.abspath(__file__)).parent)
 
-# ×××××××××××××××××××× [不要改]读取配置文件 start ××××××××××××××××××××
-# 读取settings.ini配置
+# ×××××××××××××××××××× [НЕ ИЗМЕНЯТЬ] Чтение конфигурационных файлов start ××××××××××××××××××××
+# Чтение settings.ini
 settings_config = configparser.ConfigParser()
 MODE_CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'settings.ini')
 if not os.path.exists(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'settings.ini')):
-    # 如果没有配置文件，默认使用中文
+    # Если нет конфигурационного файла, по умолчанию используется русский
     with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'settings.ini'), mode='w', encoding='utf-8') as f:
         f.write('[DEFAULT]\n')
-        f.write('Interface = 简体中文\n')
-        f.write('Language = ch\n')
+        f.write('Interface = Русский\n')
+        f.write('Language = ru\n')
         f.write('Mode = fast')
 settings_config.read(MODE_CONFIG_PATH, encoding='utf-8')
 
-# 读取interface下的语言配置,e.g. ch.ini
+# Чтение языковой конфигурации в interface, например ru.ini
 interface_config = configparser.ConfigParser()
 INTERFACE_KEY_NAME_MAP = {
+    'Русский': 'ru',
     '简体中文': 'ch',
     '繁體中文': 'chinese_cht',
     'English': 'en',
@@ -49,37 +58,37 @@ INTERFACE_KEY_NAME_MAP = {
 interface_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'interface',
                               f"{INTERFACE_KEY_NAME_MAP[settings_config['DEFAULT']['Interface']]}.ini")
 interface_config.read(interface_file, encoding='utf-8')
-# ×××××××××××××××××××× [不要改]读取配置文件 end ××××××××××××××××××××
+# ×××××××××××××××××××× [НЕ ИЗМЕНЯТЬ] Чтение конфигурационных файлов end ××××××××××××××××××××
 
 
-# ×××××××××××××××××××× [不要改]判断程序运行路径是否合法 start ××××××××××××××××××××
-# 程序运行路径如果包含中文或者空格，运行过程在程序可能会存在bug，因此需要检查路径合法性
-# 默认为合法路径
+# ×××××××××××××××××××× [НЕ ИЗМЕНЯТЬ] Проверка корректности пути запуска программы start ××××××××××××××××××××
+# Если путь программы содержит китайские символы или пробелы, в процессе работы могут возникать ошибки
+# По умолчанию путь считается корректным
 IS_LEGAL_PATH = True
-# 如果路径包含中文，设置路径为非法
+# Если путь содержит китайские символы, путь считается некорректным
 if re.search(r"[\u4e00-\u9fa5]+", BASE_DIR):
     IS_LEGAL_PATH = False
-# 如果路径包含空格，设置路径为非法
+# Если путь содержит пробелы, путь считается некорректным
 if re.search(r"\s", BASE_DIR):
     IS_LEGAL_PATH = False
-# 如果为程序存放在非法路径则一直提示用户路径不合法
+# Если программа находится в некорректном пути, постоянно выводить предупреждение
 while not IS_LEGAL_PATH:
     print(interface_config['Main']['IllegalPathWarning'])
     time.sleep(3)
-# ×××××××××××××××××××× [不要改]判断程序运行路径是否合法 end ××××××××××××××××××××
+# ×××××××××××××××××××× [НЕ ИЗМЕНЯТЬ] Проверка корректности пути запуска программы end ××××××××××××××××××××
 
 
-# ×××××××××××××××××××× [不要改]判断是否使用GPU start ××××××××××××××××××××
-# 是否使用GPU(Nvidia)
+# ×××××××××××××××××××× [НЕ ИЗМЕНЯТЬ] Определение использования GPU start ××××××××××××××××××××
+# Использовать ли GPU (Nvidia)
 USE_GPU = False
-# 如果paddlepaddle编译了gpu的版本
+# Если paddlepaddle скомпилирован с поддержкой GPU
 if paddle.is_compiled_with_cuda():
-    # 查看是否有可用的gpu
+    # Проверить доступность GPU
     if len(paddle.static.cuda_places()) > 0:
-        # 如果有GPU则使用GPU
+        # Если есть GPU, использовать GPU
         USE_GPU = True
 
-# 是否使用ONNX(DirectML/AMD/Intel)
+# Использовать ли ONNX (DirectML/AMD/Intel)
 ONNX_PROVIDERS = []
 if USE_GPU == False:
     try:
@@ -91,10 +100,10 @@ if USE_GPU == False:
             ]:
                 continue
             if provider not in [
-                "DmlExecutionProvider",         # DirectML，适用于 Windows GPU
+                "DmlExecutionProvider",         # DirectML, для Windows GPU
                 "ROCMExecutionProvider",        # AMD ROCm
                 "MIGraphXExecutionProvider",    # AMD MIGraphX
-                # "VitisAIExecutionProvider",   # AMD VitisAI，适用于 RyzenAI & Windows
+                # "VitisAIExecutionProvider",   # AMD VitisAI, для RyzenAI & Windows
                 "OpenVINOExecutionProvider",    # Intel GPU
                 "MetalExecutionProvider",       # Apple macOS
                 "CoreMLExecutionProvider",      # Apple macOS
@@ -108,14 +117,14 @@ if USE_GPU == False:
         print(interface_config['Main']['OnnxRuntimeNotInstall'])
 if len(ONNX_PROVIDERS) > 0:
     USE_GPU = True
-# ×××××××××××××××××××× [不要改]判断是否使用GPU end ××××××××××××××××××××
+# ×××××××××××××××××××× [НЕ ИЗМЕНЯТЬ] Определение использования GPU end ××××××××××××××××××××
 
 
-# ×××××××××××××××××××× [不要改]读取语言、模型路径、字典路径 start ××××××××××××××××××××
-# 设置识别语言
+# ×××××××××××××××××××× [НЕ ИЗМЕНЯТЬ] Чтение языка, пути модели, пути словаря start ××××××××××××××××××××
+# Установка языка распознавания
 REC_CHAR_TYPE = settings_config['DEFAULT']['Language']
 
-# 设置识别模式
+# Установка режима распознавания
 MODE_TYPE = settings_config['DEFAULT']['Mode']
 ACCURATE_MODE_ON = False
 if MODE_TYPE == 'accurate':
@@ -127,14 +136,21 @@ if MODE_TYPE == 'auto':
         ACCURATE_MODE_ON = True
     else:
         ACCURATE_MODE_ON = False
-# 模型文件目录
-# 默认模型版本 V4
+# Каталог файлов модели
+# Версия модели по умолчанию V4
 MODEL_VERSION = 'V4'
-# 文本检测模型
+# Модель детектирования текста
 DET_MODEL_BASE = os.path.join(BASE_DIR, 'models')
-# 设置文本识别模型 + 字典
+# Установка модели распознавания текста + словарь
 REC_MODEL_BASE = os.path.join(BASE_DIR, 'models')
-# V3, V4模型默认图形识别的shape为3, 48, 320
+# Путь к словарю
+DICT_PATH = os.path.join(BASE_DIR, 'ppocr', 'utils', 'dict', f'{REC_CHAR_TYPE}_dict.txt')
+
+# Если файл словаря не существует, используем английский словарь по умолчанию
+if not os.path.exists(DICT_PATH) and REC_CHAR_TYPE != 'en':
+    DICT_PATH = os.path.join(BASE_DIR, 'ppocr', 'utils', 'dict', 'en_dict.txt')
+    
+# V3, V4 модели по умолчанию shape распознавания изображения 3, 48, 320
 REC_IMAGE_SHAPE = '3,48,320'
 REC_MODEL_PATH = os.path.join(REC_MODEL_BASE, MODEL_VERSION, f'{REC_CHAR_TYPE}_rec')
 DET_MODEL_PATH = os.path.join(DET_MODEL_BASE, MODEL_VERSION, f'{REC_CHAR_TYPE}_det')
@@ -164,19 +180,19 @@ MULTI_LANG = LATIN_LANG + ARABIC_LANG + CYRILLIC_LANG + DEVANAGARI_LANG + \
 DET_MODEL_FAST_PATH = os.path.join(DET_MODEL_BASE, MODEL_VERSION, 'ch_det_fast')
 
 
-# 如果设置了识别文本语言类型，则设置为对应的语言
+# Если установлен тип языка распознавания текста, установить соответствующий язык
 if REC_CHAR_TYPE in MULTI_LANG:
-    # 定义文本检测与识别模型
-    # 使用快速模式时，调用轻量级模型
+    # Определение модели детектирования и распознавания текста
+    # При использовании быстрого режима, использовать легковесную модель
     if MODE_TYPE == 'fast':
         DET_MODEL_PATH = os.path.join(DET_MODEL_BASE, MODEL_VERSION, 'ch_det_fast')
         REC_MODEL_PATH = os.path.join(REC_MODEL_BASE, MODEL_VERSION, f'{REC_CHAR_TYPE}_rec_fast')
-    # 使用自动模式时，检测有没有使用GPU，根据GPU判断模型
+    # При использовании автоматического режима, определить использование GPU для выбора модели
     elif MODE_TYPE == 'auto':
-        # 如果使用GPU，则使用大模型
+        # Если используется GPU, использовать большую модель
         if USE_GPU:
             DET_MODEL_PATH = os.path.join(DET_MODEL_BASE, MODEL_VERSION, 'ch_det')
-            # 英文模式的ch模型识别效果好于fast
+            # Для английского режима модель ch распознает лучше, чем fast
             if REC_CHAR_TYPE == 'en':
                 REC_MODEL_PATH = os.path.join(REC_MODEL_BASE, MODEL_VERSION, f'ch_rec')
             else:
@@ -187,14 +203,14 @@ if REC_CHAR_TYPE in MULTI_LANG:
     else:
         DET_MODEL_PATH = os.path.join(DET_MODEL_BASE, MODEL_VERSION, 'ch_det')
         REC_MODEL_PATH = os.path.join(REC_MODEL_BASE, MODEL_VERSION, f'{REC_CHAR_TYPE}_rec')
-    # 如果默认版本(V4)没有大模型，则切换为默认版本(V4)的fast模型
+    # Если в версии по умолчанию (V4) нет большой модели, переключиться на fast модель версии по умолчанию (V4)
     if not os.path.exists(REC_MODEL_PATH):
         REC_MODEL_PATH = os.path.join(REC_MODEL_BASE, MODEL_VERSION, f'{REC_CHAR_TYPE}_rec_fast')
-    # 如果默认版本(V4)既没有大模型，又没有fast模型，则使用V3版本的大模型
+    # Если в версии по умолчанию (V4) нет ни большой модели, ни fast модели, использовать большую модель версии V3
     if not os.path.exists(REC_MODEL_PATH):
         MODEL_VERSION = 'V3'
         REC_MODEL_PATH = os.path.join(REC_MODEL_BASE, MODEL_VERSION, f'{REC_CHAR_TYPE}_rec')
-    # 如果V3版本没有大模型，则使用V3版本的fast模型
+    # Если в версии V3 нет большой модели, использовать fast модель версии V3
     if not os.path.exists(REC_MODEL_PATH):
         MODEL_VERSION = 'V3'
         REC_MODEL_PATH = os.path.join(REC_MODEL_BASE, MODEL_VERSION, f'{REC_CHAR_TYPE}_rec_fast')
@@ -208,72 +224,80 @@ if REC_CHAR_TYPE in MULTI_LANG:
     elif REC_CHAR_TYPE in DEVANAGARI_LANG:
         REC_MODEL_PATH = os.path.join(REC_MODEL_BASE, MODEL_VERSION, f'devanagari_rec_fast')
 
-    # 定义图像识别shape
+    # Определение shape распознавания изображения
     if MODEL_VERSION == 'V2':
         REC_IMAGE_SHAPE = '3,32,320'
     else:
         REC_IMAGE_SHAPE = '3,48,320'
 
-    # 查看该路径下是否有文本模型识别完整文件，没有的话合并小文件生成完整文件
+    # Проверить, есть ли полный файл модели распознавания текста в этом пути, если нет, объединить мелкие файлы для создания полного файла
     if 'inference.pdiparams' not in (os.listdir(REC_MODEL_PATH)):
-        fs = Filesplit()
-        fs.merge(input_dir=REC_MODEL_PATH)
-    # 查看该路径下是否有文本模型识别完整文件，没有的话合并小文件生成完整文件
+        if FILESPLIT_NEW_API:
+            merge = Merge(inputdir=REC_MODEL_PATH, outputdir=REC_MODEL_PATH, outputfilename='merged_file')
+            merge.merge()
+        else:
+            fs = Filesplit()
+            fs.merge(input_dir=REC_MODEL_PATH)
+    # Проверить, есть ли полный файл модели распознавания текста в этом пути, если нет, объединить мелкие файлы для создания полного файла
     if 'inference.pdiparams' not in (os.listdir(DET_MODEL_PATH)):
-        fs = Filesplit()
-        fs.merge(input_dir=DET_MODEL_PATH)
-# ×××××××××××××××××××× [不要改]读取语言、模型路径、字典路径 end ××××××××××××××××××××
+        if FILESPLIT_NEW_API:
+            merge = Merge(inputdir=DET_MODEL_PATH, outputdir=DET_MODEL_PATH, outputfilename='merged_file')
+            merge.merge()
+        else:
+            fs = Filesplit()
+            fs.merge(input_dir=DET_MODEL_PATH)
+# ×××××××××××××××××××× [НЕ ИЗМЕНЯТЬ] Чтение языка, пути модели, пути словаря end ××××××××××××××××××××
 
 
-# --------------------- 请根据自己的实际情况改 start-----------------
-# 是否生成TXT文本字幕
-GENERATE_TXT = True
+# --------------------- Измените согласно вашей ситуации start-----------------
+# Генерировать ли текстовые субтитры TXT
+GENERATE_TXT = False
 
-# 每张图中同时识别6个文本框中的文本，GPU显存越大，该数值可以设置越大
+# Распознавать текст в 6 текстовых областях одновременно на каждом изображении, чем больше видеопамяти GPU, тем больше можно установить это значение
 REC_BATCH_NUM = 6
-# DB算法每个batch识别多少张，默认为10
+# DB алгоритм распознает сколько изображений в каждом batch, по умолчанию 10
 MAX_BATCH_SIZE = 10
 
-# 默认字幕出现区域为下方
+# Область появления субтитров по умолчанию - нижняя
 DEFAULT_SUBTITLE_AREA = SubtitleArea.UNKNOWN
 
-# 每一秒抓取多少帧进行OCR识别
+# Сколько кадров в секунду захватывать для распознавания OCR
 EXTRACT_FREQUENCY = 3
 
-# 容忍的像素点偏差
-PIXEL_TOLERANCE_Y = 50  # 允许检测框纵向偏差50个像素点
-PIXEL_TOLERANCE_X = 100  # 允许检测框横向偏差100个像素点
+# Допустимое отклонение пикселей
+PIXEL_TOLERANCE_Y = 50  # Допускается продольное отклонение рамки детектирования на 50 пикселей
+PIXEL_TOLERANCE_X = 100  # Допускается горизонтальное отклонение рамки детектирования на 100 пикселей
 
-# 字幕区域偏移量
+# Смещение области субтитров
 SUBTITLE_AREA_DEVIATION_PIXEL = 50
 
-# 最有可能出现的水印区域
+# Наиболее вероятная область водяного знака
 WATERMARK_AREA_NUM = 5
 
-# 文本相似度阈值
-# 用于去重时判断两行字幕是不是同一行，这个值越高越严格。 e.g. 0.99表示100个字里面有99各个字一模一样才算相似
-# 采用动态算法实现相似度阈值判断: 对于短文本要求较低的阈值，对于长文本要求较高的阈值
-# 如：文本较短，人民、入民，0.5就算相似
+# Порог схожести текста
+# Используется для определения, являются ли две строки субтитров одной и той же строкой при удалении дубликатов, чем выше это значение, тем строже. Например, 0.99 означает, что из 100 символов 99 должны быть идентичны, чтобы считаться схожими
+# Используется динамический алгоритм для определения порога схожести текста: для короткого текста требуется более низкий порог, для длинного текста - более высокий
+# Например: для короткого текста "народ", "народ", 0.5 считается схожим
 THRESHOLD_TEXT_SIMILARITY = 0.8
 
-# 字幕提取中置信度低于0.75的不要
-DROP_SCORE = 0.75
+# Уверенность в извлечении субтитров ниже 0.75 отбрасывается
+DROP_SCORE = 0.5
 
-# 字幕区域允许偏差, 0为不允许越界, 0.03表示可以越界3%
-SUB_AREA_DEVIATION_RATE = 0
+# Допустимое отклонение области субтитров, 0 - не допускается выход за границы, 0.03 означает, что можно выйти за границы на 3%
+SUB_AREA_DEVIATION_RATE = 0.05
 
-# 输出丢失的字幕帧, 仅简体中文,繁体中文,日文,韩语有效, 默认将调试信息输出到: 视频路径/loss
+# Вывод потерянных кадров субтитров, действует только для упрощенного китайского, традиционного китайского, японского, корейского, по умолчанию отладочная информация выводится в: путь_к_видео/loss
 DEBUG_OCR_LOSS = False
 
-# 是否不删除缓存数据，以方便调试
+# Не удалять кэшированные данные для удобства отладки
 DEBUG_NO_DELETE_CACHE = False
 
-# 是否删除空时间轴
+# Удалять ли пустые временные метки
 DELETE_EMPTY_TIMESTAMP = True
 
-# 是否重新分词, 用于解决没有语句没有空格
+# Выполнять ли повторную сегментацию слов, для решения проблемы отсутствия пробелов в предложениях
 WORD_SEGMENTATION = True
 
-# --------------------- 请根据自己的实际情况改 end-----------------------------
+# --------------------- Измените согласно вашей ситуации end-----------------------------
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
